@@ -37,7 +37,7 @@ if __name__ == '__main__':
                 img = read_video(img_path)
                 lv = read_video(lv_path)
                 myo_mask = contours2mask_2(lv, low_hsv_1=[35, 43, 46], high_hsv_1=[77, 255, 255], low_hsv_2=[100, 43, 46],
-                                           high_hsv_2=[124, 255, 255], low_hsv_3=[150,130,111], high_hsv_3=[150,255,255])  ## 绿色+蓝色（应该再加粉色）的关键点
+                                           high_hsv_2=[124, 255, 255], low_hsv_3=[150,130,111], high_hsv_3=[150,255,255])  
                 lv_mask = contours2mask(lv, low_hsv=[0, 43, 46], high_hsv=[10, 255, 255])
                 # myo_mask= contours2mask(lv, low_hsv=[35, 43, 46], high_hsv=[77, 255, 255])
                 img = img[:, :, 1, :]
