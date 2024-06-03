@@ -1,0 +1,165 @@
+from __future__ import print_function
+import os
+from utils import *
+from readavi import read_video
+from contour2mask import contours2mask,contours2mask_2
+import tqdm
+import SimpleITK as sitk
+import numpy as np
+import pandas as pd
+import radiomics
+from radiomics import featureextractor
+import xlwt
+import openpyxl
+import argparse
+import re
+# from datapreprocess import DataSet
+import nibabel as nib
+import numpy as np
+import csv
+np.set_printoptions(threshold=np.inf)
+import pandas as pd
+
+print(os.getcwd())
+if __name__ == '__main__':
+    path = 'E:/Anzhendata/avi'
+    savepath = 'E:/Anzhendata/nii/frame2'
+    print("%s"%int(len(os.listdir(path))-len(os.listdir(savepath))))
+    for patient in sorted(os.listdir(path)):
+        if os.path.isdir(os.path.join(path,patient)):
+            if patient not in os.listdir(savepath):
+                print('now patient %s' % (patient))
+                outputpath = os.path.join(savepath, patient)
+                if not os.path.exists(outputpath):
+                    os.makedirs(outputpath)
+                img_path = os.path.join(path, patient, 'img.avi')
+                lv_path = os.path.join(path, patient, 'LV.avi')
+                img = read_video(img_path)
+                lv = read_video(lv_path)
+                myo_mask = contours2mask_2(lv, low_hsv_1=[35, 43, 46], high_hsv_1=[77, 255, 255], low_hsv_2=[100, 43, 46],
+                                           high_hsv_2=[124, 255, 255], low_hsv_3=[150,130,111], high_hsv_3=[150,255,255])  ## 绿色+蓝色（应该再加粉色）的关键点
+                lv_mask = contours2mask(lv, low_hsv=[0, 43, 46], high_hsv=[10, 255, 255])
+                # myo_mask= contours2mask(lv, low_hsv=[35, 43, 46], high_hsv=[77, 255, 255])
+                img = img[:, :, 1, :]
+                mask = mask_add( myo_mask, lv_mask)
+                npy_to_nii(mask, os.path.join(outputpath, 'patient' + patient.zfill(3) + '.seg.nii.gz'))
+                npy_to_nii(img, os.path.join(outputpath, 'patient' + patient.zfill(3) + '.nii.gz'))
+def clean_file_name(filename):
+    realname=''
+    filename=filename.split('\\')[-1]
+    for i in range(len(filename)):
+        if filename[i].isdigit()==True:
+            realname=realname+filename[i]
+        else:break
+    return realname
+
+if __name__ == '__main__':
+    # print(os.getcwd())
+    total_frame=25
+    parser = argparse.ArgumentParser()
+    # parser.add_argument('--data_dir', metavar='dir_name', default='E:\HCM死亡nii/frame%d'%total_frame)
+    parser.add_argument('--data_dir', metavar='dir_name', default='E:/Anzhendata/nii/frame%d'%total_frame)
+    parser.add_argument('--esed_csv', metavar='esed_csv_name', default='E:/Anzhendata/ESEDframe.csv')
+    parser.add_argument('--output_csv', metavar='csv_name', default='eval_ventricular_volume_cine.result.csv')
+
+    args = parser.parse_args()
+    # data_path = args.data_dir
+    # data_list = sorted(os.listdir(data_path))
+    esed_csv=args.esed_csv
+    info=list()
+    with open (esed_csv, 'r') as f:
+        f_csv=csv.reader(f)
+        for row in f_csv:
+            info.append(row)
+        print(info[1][6])
+        # print(len(info))
+    data_path = args.data_dir
+    data_list = sorted(os.listdir(data_path))
+    print(data_list)
+    for data_idx in data_list:
+        data_No=clean_file_name(data_idx)
+        print('now： ',data_No)
+        data='patient'+data_idx
+        img_path = data_path + '/%s/%s.nii.gz'%(data_idx,data)
+        seg_path = data_path + '/%s/%s.seg.nii.gz'%(data_idx,data)
+        table = []
+        seg = nib.load(seg_path)
+        img = nib.load(img_path)
+
+        affine_seg = seg.affine
+        affine_img = img.affine
+
+        frame = {}
+        seg = nib.load(seg_path).get_data()
+        img = nib.load(img_path).get_data()
+        print(seg.shape)
+        seg_new = np.zeros(shape=(seg.shape[0], seg.shape[1], total_frame, seg.shape[2]//total_frame))
+        img_new = np.zeros(shape=(img.shape[0], img.shape[1], total_frame, img.shape[2]//total_frame))
+
+        for i in range(seg.shape[2]//total_frame):
+            seg_new[:, :, :, i] = seg[:, :, total_frame*i:total_frame*(i+1)]
+        print(seg_new.shape)
+        for i in range(seg.shape[2]//total_frame):
+            img_new[:, :, :, i] = img[:, :, total_frame*i:total_frame*(i+1)]
+
+        seg_new = seg_new.transpose((0, 1, 3, 2))
+        img_new = img_new.transpose((0, 1, 3, 2))
+        print(seg_new.shape)
+
+        for i in range(len(info)-1):
+            if int(data_No)==int(info[i+1][0]):
+                frame['ES'] = int(info[i+1][6])
+                frame['ED'] = int(info[i+1][5])
+                es = frame['ES']
+                ed = frame['ED']
+
+        print('ES:', es)
+        print('ED:', ed)
+
+        
+        img_es = nib.Nifti1Image(img_new[:, :, :, es], affine_img)
+        img_ed = nib.Nifti1Image(img_new[:, :, :, ed], affine_img)
+        seg_es = nib.Nifti1Image(seg_new[:, :, :, es], affine_seg)
+        seg_ed = nib.Nifti1Image(seg_new[:, :, :, ed], affine_seg)
+        save_path='E:/Anzhendata\esed/{0}'.format(data)
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
+        nib.save(img_es, save_path+'/{0}_es.nii.gz'.format(data))
+        nib.save(img_ed, save_path+'/{0}_ed.nii.gz'.format(data))
+        nib.save(seg_es, save_path+'/{0}_es.seg.nii.gz'.format(data))
+        nib.save(seg_ed, save_path+'/{0}_ed.seg.nii.gz'.format(data))
+
+
+
+settings = {}
+settings['binWidth'] = 25
+settings['resampledPixelSpacing'] = [1,1,1]
+settings['interpolator'] = sitk.sitkBSpline
+
+# Initialize feature extractor
+extractor = featureextractor.RadiomicsFeatureExtractor(**settings)
+extractor.enableAllImageTypes()
+
+print("Calculating features")
+'''######################'''
+
+file_path= 'E:/Anzhendata\esed'
+# extractor.disableAllFeatures()
+# extractor.enableFeaturesByName(firstorder=['Mean', 'Skewness'])
+df=pd.DataFrame()
+patient_name=[]
+for patient in os.listdir(file_path):
+    print('now',patient)
+    patient_name.append(patient)
+    cur_file_path=os.path.join(file_path,patient)
+    imageName = os.path.join(cur_file_path,patient+'_ed.nii.gz')
+    maskName = os.path.join(cur_file_path,patient+'_ed.seg.nii.gz')
+    featureVector = extractor.execute(imageName, maskName,label=1)
+    df_add=pd.DataFrame.from_dict(featureVector.values()).T
+    df_add.columns=featureVector.keys()
+    # patient='norm_'+patient
+    # df_add.index=[patient]
+    df=pd.concat([df,df_add])
+print(df)
+print(patient_name)
+df.to_excel('E:/Anzhendata/radiomicsfeatures09.xlsx',index=patient_name)
