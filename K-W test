@@ -1,0 +1,20 @@
+install.packages("dunn.test") 
+library(dunn.test)
+
+data <- read.csv("D:/1.5Tradscore.csv")
+head(data)
+
+group <- data$group
+value <- data$value
+
+
+kruskal_test <- kruskal.test(value ~ group)
+
+
+print(kruskal_test)
+
+
+dunn_test <- dunn.test(value, group, method = "bonferroni")
+
+
+print(dunn_test$P.adjusted)
