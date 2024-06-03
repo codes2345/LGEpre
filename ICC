@@ -1,0 +1,10 @@
+
+library(psych)
+df_icc3 <- read.csv("D:/LGErepro2.csv")
+df_icc4 <- read.csv("D:/LGErepro4.csv")
+n <- dim(df_icc3)[1]
+p <- dim(df_icc4)[2]
+df_intra <- rbind(df_icc3, df_icc4)
+icc_all_intra <- apply(df_intra, 2, function(x) ICC(x = data.frame(x[1:n], x[(n+1):(2*n)]), lmer = F)$results[1,2])
+df_icc_all_intra <- data.frame(feature = names(df_intra), icc = icc_all_intra, row.names = 1:ncol(df_intra))
+write.csv(df_icc_all_intra, "D:/intraICC.csv")
