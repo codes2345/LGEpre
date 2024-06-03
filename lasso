@@ -1,7 +1,7 @@
 rm(list=ls())
 setwd("D:/data")
 getwd()
-data<-read.csv("PCC0.8trainz.csv")
+data<-read.csv("data.csv")
 cv_x <- as.matrix(data[,9:152])
 cv_y <- as.matrix(data[,"class2"])
 set.seed(1)
