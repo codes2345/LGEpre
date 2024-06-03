@@ -3,7 +3,7 @@ from pandas import read_excel
 from sklearn import preprocessing
 
 
-dataset = read_excel('D:/HCMLGEall(1)selectedICC0.8.xlsx', header=0, index_col=0)
+dataset = read_excel('D:/data.xlsx', header=0, index_col=0)
 values = dataset.values 
 values = values.astype('float32') 
 
@@ -12,4 +12,4 @@ df=pandas.DataFrame(data)
 
 df.columns=dataset.columns 
 
-df.to_excel ('D:/HCMLGEall(1)selectedICC0.8z.xlsx',index=None)
+df.to_excel ('D:/dataz.xlsx',index=None)
