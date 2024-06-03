@@ -1,0 +1,13 @@
+library(caret)
+aa<- read.csv('D:/HCMLGEall(1)selectedICC0.8z.csv')
+corMatrix_GTV =  cor(aa, y = NULL, use = "ev",method = "spearman")
+highly_correlated_columns_GTV = findCorrelation(
+  corMatrix_GTV,
+  cutoff = 0.8,
+  verbose = FALSE,
+  names = FALSE,
+  exact = TRUE
+)
+DT_GTV <- aa[, -highly_correlated_columns_GTV]
+write.csv(DT_GTV, "D:/HCMLGEall(1)selectedSCC0.8z.csv")
+
